@@ -41,3 +41,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# A mis-named copy of .env.example; never track real keys under this name either.
+env.local
