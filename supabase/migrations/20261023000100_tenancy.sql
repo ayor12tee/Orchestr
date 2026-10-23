@@ -194,7 +194,7 @@ create table public.teams (
 create table public.team_members (
   team_id         uuid not null,
   organization_id uuid not null,
-  user_id         uuid not null,
+  user_id         uuid not null references public.profiles(id) on delete cascade,
   role_id         uuid not null,
   created_at      timestamptz not null default now(),
   primary key (team_id, user_id),

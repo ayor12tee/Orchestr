@@ -15,16 +15,17 @@ export async function sendSignInLink(formData: FormData) {
 
   const supabase = await createClient();
   const site = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
-  // shouldCreateUser: false makes this invitation-only: unknown emails get no account.
-  await supabase.auth.signInWithOtp({
+  // Self-serve: a new email gets an account and lands on "create your
+  // organization". An account on its own grants nothing; access to any
+  // organization still comes only from membership.
+  const { error } = await supabase.auth.signInWithOtp({
     email: parsed.data.email,
     options: {
-      shouldCreateUser: false,
+      shouldCreateUser: true,
       emailRedirectTo: `${site}/auth/callback?next=${encodeURIComponent(parsed.data.next)}`,
     },
   });
-  // Same response whether or not the email was invited, so the form can't be
-  // used to discover who has access.
+  if (error?.status === 429) redirect("/login?error=Too+many+sign-in+emails.+Wait+a+minute+and+try+again.");
   redirect("/login?sent=1");
 }
 

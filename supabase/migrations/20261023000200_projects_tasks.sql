@@ -43,7 +43,7 @@ create trigger check_timezone before insert or update of timezone on public.proj
 create table public.project_members (
   project_id      uuid not null,
   organization_id uuid not null,
-  user_id         uuid not null,
+  user_id         uuid not null references public.profiles(id) on delete cascade,
   role_id         uuid not null,
   added_by        uuid references public.profiles(id) on delete set null default auth.uid(),
   created_at      timestamptz not null default now(),

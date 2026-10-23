@@ -1,18 +1,20 @@
 import Link from "next/link";
-import type { AccessContext } from "@/lib/auth";
+import type { ProjectAccess } from "@/lib/auth";
 import { describeMissing } from "@/lib/domain/schedule";
 import { formatDay, formatShift } from "@/lib/format";
 import { removeDependency } from "@/lib/schedule/actions";
 import type { ScheduleData } from "@/lib/schedule/data";
 import { statusLabel, type DependencyRow, type TaskRow } from "@/lib/tasks/types";
+import { ProjectFields } from "./project-context";
 import { AddDependencyForm, ExceptionForm, ImpactPreviewForm, RebaselineForm } from "./schedule-interactions";
 import { Badge, Card } from "./ui";
 
-export function SchedulePanel({ task, schedule, access }: { task: TaskRow; schedule: ScheduleData; access: AccessContext }) {
+export function SchedulePanel({ task, schedule, access }: { task: TaskRow; schedule: ScheduleData; access: ProjectAccess }) {
   const f = schedule.forecast.get(task.id);
   const milestone = task.kind === "milestone";
   const late = f?.varianceToPlanDays ?? null;
   const vsBaseline = f?.varianceToBaselineDays ?? null;
+  const base = access.projectBase;
 
   return (
     <Card title={milestone ? "Milestone forecast" : "Schedule"}>
@@ -46,13 +48,13 @@ export function SchedulePanel({ task, schedule, access }: { task: TaskRow; sched
             <p className="mt-2 text-sm text-ink-muted">
               Pushed out by{" "}
               {schedule.taskById.has(f.drivenBy)
-                ? <Link href={`/tasks/${f.drivenBy}`} className="text-brand hover:underline">{schedule.titleOf(f.drivenBy)}</Link>
+                ? <Link href={`${base}/tasks/${f.drivenBy}`} className="text-brand hover:underline">{schedule.titleOf(f.drivenBy)}</Link>
                 : schedule.titleOf(f.drivenBy)}
             </p>
           )}
         </>
       )}
-      {access.can("baseline.approve") && task.due_date && task.planning_state === "approved" && (
+      {access.canInProject("baseline.approve") && task.due_date && task.planning_state === "approved" && (
         <div className="mt-3"><RebaselineForm id={task.id} version={task.version} /></div>
       )}
       {task.status !== "completed" && <ImpactPreviewForm taskId={task.id} defaultDate={f?.forecastFinish ?? task.due_date} />}
@@ -60,16 +62,17 @@ export function SchedulePanel({ task, schedule, access }: { task: TaskRow; sched
   );
 }
 
-export function DependenciesPanel({ task, schedule, access }: { task: TaskRow; schedule: ScheduleData; access: AccessContext }) {
+export function DependenciesPanel({ task, schedule, access }: { task: TaskRow; schedule: ScheduleData; access: ProjectAccess }) {
   const waitsOn = schedule.dependencyRows.filter((d) => d.successor_id === task.id);
   const blocks = schedule.dependencyRows.filter((d) => d.predecessor_id === task.id);
-  const canManage = access.can("dependencies.manage", task.department_id);
-  const canApprove = access.can("approvals.decide");
+  const canManage = access.canInProject("dependencies.manage", task.team_id);
+  const canApprove = access.canInProject("approvals.decide");
+  const base = access.projectBase;
   const linked = new Set([...waitsOn.map((d) => d.predecessor_id), ...blocks.map((d) => d.successor_id), task.id]);
   const options = schedule.tasks
     .filter((t) => !linked.has(t.id))
-    .sort((a, b) => (a.department?.name ?? "").localeCompare(b.department?.name ?? "") || a.title.localeCompare(b.title))
-    .map((t) => ({ id: t.id, label: `${t.kind === "milestone" ? "◆ " : ""}${t.title}${t.department ? ` — ${t.department.name}` : ""}` }));
+    .sort((a, b) => (a.team?.name ?? "").localeCompare(b.team?.name ?? "") || a.title.localeCompare(b.title))
+    .map((t) => ({ id: t.id, label: `${t.kind === "milestone" ? "◆ " : ""}${t.title}${t.team ? ` — ${t.team.name}` : ""}` }));
 
   const row = (d: DependencyRow, otherId: string, removable: boolean, waiting: boolean) => {
     const other = schedule.taskById.get(otherId);
@@ -78,11 +81,12 @@ export function DependenciesPanel({ task, schedule, access }: { task: TaskRow; s
       <li key={d.id} className="py-2 first:pt-0 last:pb-0">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="min-w-0">
-            {other ? <Link href={`/tasks/${other.id}`} className="font-medium hover:text-brand">{other.kind === "milestone" && "◆ "}{other.title}</Link> : <span className="italic text-ink-muted">A task outside your view</span>}
+            {other ? <Link href={`${base}/tasks/${other.id}`} className="font-medium hover:text-brand">{other.kind === "milestone" && "◆ "}{other.title}</Link> : <span className="italic text-ink-muted">A task outside your view</span>}
             {other && <span className="ml-2"><Badge tone={other.status === "completed" ? "green" : other.status === "blocked" ? "red" : "grey"}>{statusLabel(other.status)}</Badge></span>}
           </span>
           {removable && (
             <form action={removeDependency}>
+              <ProjectFields />
               <input type="hidden" name="id" value={d.id} />
               <input type="hidden" name="task_id" value={task.id} />
               <button className="text-xs text-ink-muted hover:text-status-red" aria-label={`Remove link with ${other?.title ?? "hidden task"}`}>Remove</button>
@@ -93,9 +97,7 @@ export function DependenciesPanel({ task, schedule, access }: { task: TaskRow; s
           {blocking ? "Blocking" : "Related, doesn't block"}
           {d.lag_days > 0 && ` · ${d.lag_days} day${d.lag_days === 1 ? "" : "s"} gap after it finishes`}
         </p>
-        {d.exception_approved && (
-          <p className="mt-1 text-xs text-status-amber">Exception approved: “{d.exception_reason}”</p>
-        )}
+        {d.exception_approved && <p className="mt-1 text-xs text-status-amber">Exception approved: “{d.exception_reason}”</p>}
         {waiting && blocking && canApprove && (d.exception_approved || other?.status !== "completed") && (
           <div className="mt-1"><ExceptionForm id={d.id} taskId={task.id} approved={d.exception_approved} /></div>
         )}
@@ -104,7 +106,7 @@ export function DependenciesPanel({ task, schedule, access }: { task: TaskRow; s
   };
 
   return (
-    <Card title="Dependencies" action={<Link href={`/dependencies?task=${task.id}`} className="text-xs text-brand hover:underline">View on map</Link>}>
+    <Card title="Dependencies" action={<Link href={`${base}/dependencies?task=${task.id}`} className="text-xs text-brand hover:underline">View on map</Link>}>
       <p className="text-xs font-medium text-ink-muted">Waits on</p>
       {waitsOn.length ? (
         <ul className="mt-1 divide-y divide-line text-sm">{waitsOn.map((d) => row(d, d.predecessor_id, canManage, true))}</ul>
@@ -114,7 +116,7 @@ export function DependenciesPanel({ task, schedule, access }: { task: TaskRow; s
       <p className="mt-4 text-xs font-medium text-ink-muted">Must finish before</p>
       {blocks.length ? (
         <ul className="mt-1 divide-y divide-line text-sm">
-          {blocks.map((d) => row(d, d.successor_id, access.can("dependencies.manage", schedule.taskById.get(d.successor_id)?.department_id), false))}
+          {blocks.map((d) => row(d, d.successor_id, access.canInProject("dependencies.manage", schedule.taskById.get(d.successor_id)?.team_id), false))}
         </ul>
       ) : (
         <p className="mt-1 text-sm text-ink-muted">No tasks wait on this one.</p>

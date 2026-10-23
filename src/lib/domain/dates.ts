@@ -71,9 +71,13 @@ export function earliestStartAfter(predecessorFinish: IsoDate, lagDays: number):
   return addDays(predecessorFinish, 1 + lagDays);
 }
 
-/** Today's date in Lagos (WAT, UTC+1, no DST), the conference's local time. */
-export function todayInLagos(now: Date = new Date()): IsoDate {
-  return new Date(now.getTime() + 60 * 60 * 1000).toISOString().slice(0, 10);
+/**
+ * Today's calendar date in an IANA time zone (the organization's or the
+ * project's), so "overdue" flips at local midnight, not UTC midnight.
+ */
+export function todayIn(timeZone: string, now: Date = new Date()): IsoDate {
+  // en-CA formats as YYYY-MM-DD.
+  return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
 }
 
 /** Whole days remaining until `target`, counted from `today`. */

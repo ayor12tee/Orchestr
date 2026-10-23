@@ -6,8 +6,8 @@ const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "ConTech Command Centre",
-  description: "Conference operations command centre for ConTech Nigeria 2026",
+  title: "Orchestr",
+  description: "Turn plans into coordinated execution.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

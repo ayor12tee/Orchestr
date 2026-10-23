@@ -6,6 +6,7 @@ import { addDependency, previewImpact, setDependencyException, type ImpactPrevie
 import { rebaseline } from "@/lib/tasks/actions";
 import type { ActionResult } from "@/lib/tasks/types";
 import { formatDay, formatShift } from "@/lib/format";
+import { ProjectFields, useProject } from "./project-context";
 import { buttonClass, inputClass, secondaryButtonClass } from "./ui";
 
 function Result({ state }: { state: ActionResult | null }) {
@@ -22,6 +23,7 @@ export function AddDependencyForm({ taskId, options }: { taskId: string; options
   const [type, setType] = useState("finish_to_start");
   return (
     <form action={action} className="mt-4 space-y-3 border-t border-line pt-4">
+      <ProjectFields />
       <input type="hidden" name="task_id" value={taskId} />
       <p className="text-sm font-medium text-ink">Add a dependency</p>
       <div className="grid gap-3 sm:grid-cols-2">
@@ -65,6 +67,7 @@ export function ExceptionForm({ id, taskId, approved }: { id: string; taskId: st
   if (approved) {
     return (
       <form action={action} className="inline">
+        <ProjectFields />
         <input type="hidden" name="id" value={id} />
         <input type="hidden" name="task_id" value={taskId} />
         <input type="hidden" name="approve" value="false" />
@@ -78,6 +81,7 @@ export function ExceptionForm({ id, taskId, approved }: { id: string; taskId: st
   }
   return (
     <form action={action} className="mt-2 space-y-2 rounded-md bg-surface-muted p-3">
+      <ProjectFields />
       <input type="hidden" name="id" value={id} />
       <input type="hidden" name="task_id" value={taskId} />
       <input type="hidden" name="approve" value="true" />
@@ -95,10 +99,12 @@ export function ExceptionForm({ id, taskId, approved }: { id: string; taskId: st
 }
 
 export function ImpactPreviewForm({ taskId, defaultDate }: { taskId: string; defaultDate: string | null }) {
+  const { base } = useProject();
   const [state, action, pending] = useActionState<ImpactPreview | { ok: false; error: string } | null, FormData>(previewImpact, null);
   return (
     <div className="mt-4 border-t border-line pt-4">
       <form action={action} className="flex flex-wrap items-end gap-2">
+        <ProjectFields />
         <input type="hidden" name="task_id" value={taskId} />
         <label className="block text-sm">
           <span className="text-xs font-medium text-ink-muted">What if this finishes on…</span>
@@ -121,7 +127,7 @@ export function ImpactPreviewForm({ taskId, defaultDate }: { taskId: string; def
               <ul className="divide-y divide-line rounded-md border border-line">
                 {state.affected.map((e) => (
                   <li key={e.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
-                    <Link href={`/tasks/${e.id}`} className="hover:text-brand">
+                    <Link href={`${base}/tasks/${e.id}`} className="hover:text-brand">
                       {e.milestone && <span aria-label="Milestone">◆ </span>}{e.title}
                     </Link>
                     <span className="text-xs tabular-nums">
@@ -153,6 +159,7 @@ export function RebaselineForm({ id, version }: { id: string; version: number })
   if (!open) return <button type="button" onClick={() => setOpen(true)} className="text-xs text-brand hover:underline">Re-baseline to current plan…</button>;
   return (
     <form action={action} className="mt-2 space-y-2 rounded-md bg-surface-muted p-3">
+      <ProjectFields />
       <input type="hidden" name="id" value={id} />
       <input type="hidden" name="version" value={version} />
       <label className="block text-xs font-medium text-ink-muted">

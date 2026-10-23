@@ -2,7 +2,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { addDays, diffDays, earliestStartAfter, finishFromStart, isIsoDate, todayInLagos } from "./dates.ts";
+import { addDays, diffDays, earliestStartAfter, finishFromStart, isIsoDate, todayIn } from "./dates.ts";
 import { downstreamOf, layeredLayout, validateDependency, type Dependency } from "./graph.ts";
 import { computeSchedule, impactOfChange, impactOfFinishingOn, type ScheduleNode } from "./schedule.ts";
 import { weightedProgress, type DeliverableProgressInput } from "./progress.ts";
@@ -39,8 +39,12 @@ describe("dates: calendar days, inclusive", () => {
     assert.equal(isIsoDate("2026-02-30"), false);
     assert.equal(isIsoDate("2026-11-21"), true);
   });
-  it("uses Lagos time for 'today'", () => {
-    assert.equal(todayInLagos(new Date("2026-11-20T23:30:00Z")), "2026-11-21");
+  it("'today' follows the organization's time zone", () => {
+    const instant = new Date("2026-11-20T23:30:00Z");
+    assert.equal(todayIn("Africa/Lagos", instant), "2026-11-21");
+    assert.equal(todayIn("UTC", instant), "2026-11-20");
+    assert.equal(todayIn("America/New_York", instant), "2026-11-20");
+    assert.equal(todayIn("Asia/Tokyo", instant), "2026-11-21");
   });
 });
 

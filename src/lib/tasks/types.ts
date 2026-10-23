@@ -16,8 +16,9 @@ export const PRIORITIES: TaskPriority[] = ["low", "medium", "high", "urgent"];
 
 export interface TaskRow {
   id: string;
-  conference_id: string;
-  department_id: string | null;
+  organization_id: string;
+  project_id: string;
+  team_id: string | null;
   workstream: string | null;
   kind: "task" | "milestone";
   title: string;
@@ -41,19 +42,20 @@ export interface TaskRow {
   blocker_details: string | null;
   next_action: string | null;
   planning_state: "suggested" | "approved";
-  source: "manual" | "seed" | "template";
+  source: "manual" | "template";
   version: number;
   created_at: string;
   updated_at: string;
 }
 
 export interface TaskListRow extends TaskRow {
-  department: { name: string; slug: string } | null;
+  // Filled in from the project's teams after loading: tasks reference teams
+  // through project_teams, so there's no direct relationship to embed.
+  team: { id: string; name: string } | null;
   owner: { full_name: string | null; email: string } | null;
 }
 
-export const TASK_LIST_SELECT =
-  "*, department:departments(name, slug), owner:profiles!tasks_accountable_owner_id_fkey(full_name, email)";
+export const TASK_LIST_SELECT = "*, owner:profiles!tasks_accountable_owner_id_fkey(full_name, email)";
 
 export type ActionResult =
   | { ok: true; message?: string }
@@ -61,7 +63,8 @@ export type ActionResult =
 
 export interface DependencyRow {
   id: string;
-  conference_id: string;
+  organization_id: string;
+  project_id: string;
   predecessor_id: string;
   successor_id: string;
   type: "finish_to_start" | "informational";

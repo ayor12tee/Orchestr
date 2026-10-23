@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { createTask, updateTask } from "@/lib/tasks/actions";
 import type { ActionResult, TaskRow } from "@/lib/tasks/types";
 import { PRIORITIES } from "@/lib/tasks/types";
+import { ProjectFields } from "./project-context";
 import { buttonClass, inputClass } from "./ui";
 
 interface Option {
@@ -13,27 +14,31 @@ interface Option {
 
 export function TaskForm({
   task,
-  departments,
+  teams,
   people,
   canAssign,
   canApprovePlanning,
-  defaultDepartmentId,
+  allowNoTeam,
+  defaultTeamId,
 }: {
   task?: TaskRow;
-  departments: Option[];
+  /** Teams the user may put this task in. */
+  teams: Option[];
   people: Option[];
   canAssign: boolean;
   canApprovePlanning: boolean;
-  defaultDepartmentId?: string;
+  /** Whether the user may create or keep project-wide tasks with no team. */
+  allowNoTeam: boolean;
+  defaultTeamId?: string;
 }) {
   const [state, action, pending] = useActionState<ActionResult | null, FormData>(task ? updateTask : createTask, null);
   const err = (f: string) => (state && !state.ok ? state.fieldErrors?.[f]?.[0] : undefined);
-  const datesChanging = !!task;
   const [kind, setKind] = useState<"task" | "milestone">(task?.kind ?? "task");
   const milestone = kind === "milestone";
 
   return (
     <form action={action} className="space-y-4">
+      <ProjectFields />
       {task && (
         <>
           <input type="hidden" name="id" value={task.id} />
@@ -59,11 +64,14 @@ export function TaskForm({
       </Field>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Department" error={err("department_id")}>
-          <select name="department_id" defaultValue={task?.department_id ?? defaultDepartmentId ?? ""} className={inputClass}>
-            <option value="">No department (conference-wide)</option>
-            {departments.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
+        <Field label="Team" error={err("team_id")} hint="The team responsible. Team roles apply to its tasks.">
+          <select name="team_id" defaultValue={task?.team_id ?? defaultTeamId ?? (allowNoTeam ? "" : teams[0]?.id)} className={inputClass}>
+            {allowNoTeam && <option value="">No team (project-wide)</option>}
+            {teams.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
           </select>
+        </Field>
+        <Field label="Workstream" hint="Optional grouping, e.g. 'Outreach' or 'Venue'.">
+          <input name="workstream" defaultValue={task?.workstream ?? ""} className={inputClass} />
         </Field>
         <Field label="Accountable owner" hint={canAssign ? "One person is accountable." : "Only people who can assign tasks may change this."}>
           <select name="accountable_owner_id" defaultValue={task?.accountable_owner_id ?? ""} disabled={!canAssign} className={inputClass}>
@@ -79,7 +87,7 @@ export function TaskForm({
           </select>
           {!canAssign && <input type="hidden" name="reviewer_id" value={task?.reviewer_id ?? ""} />}
         </Field>
-        <Field label="Type" hint={milestone ? "A checkpoint with a single date, such as 'Programme published'." : undefined}>
+        <Field label="Type" hint={milestone ? "A checkpoint with a single date, such as 'Contract signed'." : undefined}>
           <select name="kind" value={kind} onChange={(e) => setKind(e.target.value as "task" | "milestone")} className={inputClass}>
             <option value="task">Task</option>
             <option value="milestone">Milestone</option>
@@ -104,10 +112,10 @@ export function TaskForm({
           </Field>
         )}
         {canApprovePlanning && (
-          <Field label="Planning values" hint="Approve once owner, dates and criteria are confirmed.">
+          <Field label="Planning values" hint="Approve once owner, dates and criteria are confirmed. The first approval sets the baseline.">
             <select name="planning_state" defaultValue={task?.planning_state ?? "approved"} className={inputClass}>
               <option value="suggested">Suggested (not yet confirmed)</option>
-              <option value="approved">Approved by leadership</option>
+              <option value="approved">Approved</option>
             </select>
           </Field>
         )}
@@ -126,7 +134,7 @@ export function TaskForm({
         <label className="flex items-center gap-2"><input type="checkbox" name="requires_review" defaultChecked={task?.requires_review} /> Completion requires review</label>
       </fieldset>
 
-      {datesChanging && (
+      {task && (
         <Field label="Reason for change" hint="Recorded in the task history, especially for date or owner changes.">
           <input name="change_reason" className={inputClass} />
         </Field>

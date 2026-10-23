@@ -1,9 +1,9 @@
 import { cache } from "react";
-import { getAccess } from "@/lib/auth";
-import { getSettings } from "@/lib/settings";
+import type { ProjectAccess } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import type { Dependency } from "@/lib/domain/graph";
 import { computeSchedule, type NodeForecast, type ScheduleNode } from "@/lib/domain/schedule";
+import { getProjectSettings, getProjectTeams } from "@/lib/projects/data";
 import { TASK_LIST_SELECT, type DependencyRow, type TaskListRow, type TaskRow } from "@/lib/tasks/types";
 
 export const HIDDEN_TASK_TITLE = "a task outside your view";
@@ -48,22 +48,27 @@ export interface ScheduleData {
 }
 
 /**
- * Loads every task and dependency the user can see and forecasts them.
- * Forecasts are recalculated on each request from stored facts, never saved.
+ * Loads every task and dependency of the project that the user can see and
+ * forecasts them. Forecasts are recalculated on each request from stored
+ * facts, never saved.
  *
  * A dependency can point at a task the user isn't allowed to see. That task
  * becomes a dateless placeholder, so anything waiting on it is reported as
  * "unknown" instead of being forecast as if the hidden work were on time.
  */
-export const loadSchedule = cache(async (): Promise<ScheduleData> => {
-  const access = await getAccess();
-  const settings = await getSettings();
+export const loadSchedule = cache(async (access: ProjectAccess): Promise<ScheduleData> => {
   const supabase = await createClient();
-  const [{ data: taskData }, { data: depData }] = await Promise.all([
-    supabase.from("tasks").select(TASK_LIST_SELECT).eq("conference_id", access.conference.id).returns<TaskListRow[]>(),
-    supabase.from("task_dependencies").select("*").eq("conference_id", access.conference.id).returns<DependencyRow[]>(),
+  const [settings, teams, { data: taskData }, { data: depData }] = await Promise.all([
+    getProjectSettings(access),
+    getProjectTeams(access),
+    supabase.from("tasks").select(TASK_LIST_SELECT).eq("project_id", access.project.id).returns<Omit<TaskListRow, "team">[]>(),
+    supabase.from("task_dependencies").select("*").eq("project_id", access.project.id).returns<DependencyRow[]>(),
   ]);
-  const tasks = taskData ?? [];
+  const teamName = new Map(teams.map((t) => [t.id, t.label]));
+  const tasks: TaskListRow[] = (taskData ?? []).map((t) => ({
+    ...t,
+    team: t.team_id ? { id: t.team_id, name: teamName.get(t.team_id) ?? "Team" } : null,
+  }));
   const dependencyRows = depData ?? [];
   const taskById = new Map(tasks.map((t) => [t.id, t]));
 
