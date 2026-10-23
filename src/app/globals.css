@@ -1,0 +1,35 @@
+@import "tailwindcss";
+
+/* Brief §9.1: indigo accent, restrained neutrals, consistent status colours.
+   Status colours always come with a text label, never colour alone. */
+@theme {
+  --color-brand: #533ca6;
+  --color-brand-strong: #432f8a;
+  --color-brand-soft: #efecf8;
+
+  --color-ink: #1c1b22;
+  --color-ink-muted: #5b5966;
+  --color-line: #e3e1ea;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f7f6fa;
+
+  --color-status-green: #1e7a46;
+  --color-status-green-bg: #e7f5ec;
+  --color-status-amber: #8a5a00;
+  --color-status-amber-bg: #fdf3dc;
+  --color-status-red: #b42318;
+  --color-status-red-bg: #fde9e7;
+  --color-status-grey: #5b5966;
+  --color-status-grey-bg: #efeef3;
+}
+
+/* inline: the font variables are set on <body> by next/font, not on :root. */
+@theme inline {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+body {
+  background: var(--color-surface-muted);
+  color: var(--color-ink);
+}
